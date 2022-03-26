@@ -7,18 +7,23 @@
 
 void scan_table_init(struct scan_table_st *tt) {
     // initialize the count to zero, like we did for the map in lab01
+    tt->head = NULL;
     tt->len = 0;
 }
 
 struct scan_token_st *scan_table_new_token(struct scan_table_st *tt) {
     struct scan_token_st *tp = calloc(1, sizeof(struct scan_token_st));
-    struct scan_token_st *walk = tt->head;
-    while (1) {
-        if (!walk->next) {
-            walk->next = tp;
-            break;
-        } else {
-            walk = walk->next;
+    if (!tt->head) {
+        tt->head = tp;
+    } else {
+        struct scan_token_st *walk = tt->head;
+        while (1) {
+            if (!walk->next) {
+                walk->next = tp;
+                break;
+            } else {
+                walk = walk->next;
+            }
         }
     }
 
@@ -60,28 +65,78 @@ bool scan_is_digit(char c) {
 }
 
 char *scan_intlit(struct scan_token_st *tp, char *p, char *end) {
-    // TODO: fill this in, like scan_read_token except just for integers
+    int i = 0;
+    while (scan_is_digit(*p) && p < end) {
+        tp->name[i] = *p;
+        p += 1;
+        i += 1;
+    }
+    tp->name[i] = '\0';
+    tp->id = TK_INTLIT;
+    return p;
+}
+
+bool scan_is_hex_digit(char c) {
+    return ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || scan_is_digit(c));
+}
+
+char *scan_hexlit(struct scan_token_st *tp, char *p, char *end) {
+    int i = 0;
+    while (scan_is_hex_digit(*p) && p < end) {
+        tp->name[i] = *p;
+        p += 1;
+        i += 1;
+    }
+    tp->name[i] = '\0';
+    tp->id = TK_HEXLIT;
+    return p;
+}
+
+bool scan_is_bin_digit(char c) {
+    return c == '0' || c == '1';
+}
+
+char *scan_binlit(struct scan_token_st *tp, char *p, char *end) {
+    int i = 0;
+    while (scan_is_bin_digit(*p) && p < end) {
+        tp->name[i] = *p;
+        p += 1;
+        i += 1;
+    }    
+    tp->name[i] = '\0';
+    tp->id = TK_BINLIT;
     return p;
 }
 
 char *scan_token(struct scan_token_st *tp, char *p, char *end) {
-
-/* TODO
-    add cases for binlit and hexlit
-    add cases for the other symbols
-*/
     if (p == end) {
         p = scan_read_token(tp, p, 0, TK_EOT);
     } else if (scan_is_whitespace(*p)) {
-        // skip over the whitespace
         p = scan_whitespace(p, end);
-        // recurse to get the next token
         p = scan_token(tp, p, end);
+    } else if (*p == '0' && *(p + 1) == 'b') {
+        p = scan_binlit(tp, p + 2, end); // +2 to skip over "0b"
+    } else if (*p == '0' && *(p + 1) == 'x') {
+        p = scan_hexlit(tp, p + 2, end); // +2 to skip over "0x"
     } else if (scan_is_digit(*p)) {
         p = scan_intlit(tp, p, end);
     } else if (*p == '+') {
         p = scan_read_token(tp, p, 1, TK_PLUS);
+    } else if (*p == '-') {
+        p = scan_read_token(tp, p, 1, TK_MINUS);
+    } else if (*p == '*') {
+        p = scan_read_token(tp, p, 1, TK_MULT);
+    } else if (*p == '/') {
+        p = scan_read_token(tp, p, 1, TK_DIV);                        
+    } else if (*p == '(') {
+        p = scan_read_token(tp, p, 1, TK_LPAREN);
+    } else if (*p == ')') {
+        p = scan_read_token(tp, p, 1, TK_RPAREN);        
+    } else {
+        printf("Invalid character %c", *p);
+        exit(-1);
     }
+
     return p;
 }
 
@@ -106,8 +161,8 @@ void scan_table_print(struct scan_table_st *tt) {
     struct scan_token_st *tp = tt->head;
     while (tp) {
         // print the ID and name of that token
-        // TODO: write the printf line to do that as the spec shows. 
-        // Hint: use \" to get a double quote inside a string  
+        printf("%s(\"%s\")\n", id_names[tp->id], tp->name);
+        tp = tp->next;
     }
 }
 
